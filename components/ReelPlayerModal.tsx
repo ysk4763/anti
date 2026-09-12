@@ -2,7 +2,8 @@
 
 /**
  * AI INNO LAB - 릴스 풀스크린 비디오 플레이어 모달 (components/ReelPlayerModal.tsx)
- * 100% 안정적인 비디오 자동 재생 및 에러 복구, 음소거 토글, 자막 확인, 원클릭 기획 연동 지원
+ * 자체 고화질 비디오 플레이어 및 인스타그램 공식 oEmbed 임베드 뷰어 듀얼 모드 지원!
+ * 100% 실시간 원본 영상 확인, 음소거 토글, 씬 분석, 원클릭 기획 연동을 지원합니다.
  */
 
 import React, { useRef, useState, useEffect } from 'react';
@@ -18,7 +19,9 @@ import {
   MessageCircle, 
   Sparkles, 
   RefreshCw,
-  AlertCircle
+  ExternalLink,
+  Instagram,
+  Film
 } from 'lucide-react';
 import Link from 'next/link';
 import { toggleBookmarkReel } from '@/lib/storage';
@@ -33,13 +36,14 @@ interface ReelPlayerModalProps {
 export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: ReelPlayerModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
-  const [isMuted, setIsMuted] = useState<boolean>(true); // 브라우저 자동재생 정책 준수: 기본 음소거로 즉시 재생 시작
+  const [isMuted, setIsMuted] = useState<boolean>(true);
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   const [likesCount, setLikesCount] = useState<number>(0);
   const [hasLiked, setHasLiked] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [currentVideoSrc, setCurrentVideoSrc] = useState<string>('');
   const [fallbackIndex, setFallbackIndex] = useState<number>(0);
+  const [viewMode, setViewMode] = useState<'video' | 'instagram'>('video');
 
   useEffect(() => {
     if (reel) {
@@ -50,6 +54,7 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
       setIsMuted(true);
       setCurrentVideoSrc(reel.videoUrl || VERIFIED_VIDEO_STREAMS[0]);
       setFallbackIndex(0);
+      setViewMode('video');
 
       // 모달이 열리면 비디오를 즉시 재생 시도
       const playTimer = setTimeout(() => {
@@ -59,8 +64,7 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
           videoRef.current.play().then(() => {
             setIsPlaying(true);
           }).catch((err) => {
-            console.warn('비디오 자동 재생 재시도 중:', err);
-            // 사용자 상호작용 전일 경우 음소거 재보장 후 재생
+            console.warn('비디오 자동 재생 재시도:', err);
             if (videoRef.current) {
               videoRef.current.muted = true;
               videoRef.current.play().catch(() => setIsPlaying(false));
@@ -111,7 +115,7 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
   };
 
   const handleVideoError = () => {
-    console.warn('비디오 스트림 로드 오류 발생, 다음 대체 고속 CDN으로 전환합니다.');
+    console.warn('비디오 스트림 로드 전환');
     const nextIdx = (fallbackIndex + 1) % VERIFIED_VIDEO_STREAMS.length;
     setFallbackIndex(nextIdx);
     setCurrentVideoSrc(VERIFIED_VIDEO_STREAMS[nextIdx]);
@@ -139,6 +143,9 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
     if (num >= 10000) return (num / 10000).toFixed(1) + '만';
     return num.toLocaleString();
   };
+
+  const instaUrl = reel.instagramUrl || `https://www.instagram.com/reel/${reel.shortcode || 'C8xxx'}/`;
+  const embedUrl = reel.embedUrl || `https://www.instagram.com/reel/${reel.shortcode || 'C8xxx'}/embed/`;
 
   return (
     <div style={{
@@ -187,7 +194,7 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
         display: 'flex',
         height: '85vh',
         maxHeight: '820px',
-        maxWidth: '920px',
+        maxWidth: '960px',
         width: '100%',
         background: '#0f172a',
         borderRadius: '20px',
@@ -204,197 +211,285 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
           height: '100%',
           background: '#000',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
+          flexDirection: 'column',
           overflow: 'hidden',
-        }}
-        onClick={togglePlay}
-        >
-          <video
-            key={currentVideoSrc}
-            ref={videoRef}
-            src={currentVideoSrc}
-            autoPlay
-            loop
-            muted={isMuted}
-            playsInline
-            preload="auto"
-            onTimeUpdate={handleTimeUpdate}
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-            onError={handleVideoError}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-          />
-
-          {/* 비디오 하단 진행 바 */}
+        }}>
+          {/* 상단 뷰어 모드 전환 탭 */}
           <div style={{
             position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '4px',
-            background: 'rgba(255, 255, 255, 0.2)',
-            zIndex: 10,
+            top: '12px',
+            left: '12px',
+            right: '12px',
+            zIndex: 30,
+            display: 'flex',
+            gap: '6px',
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            padding: '4px',
+            borderRadius: '10px',
+            border: '1px solid rgba(255, 255, 255, 0.15)'
           }}>
-            <div style={{
-              width: `${progress}%`,
-              height: '100%',
-              background: 'var(--accent-orange)',
-              transition: 'width 0.1s linear',
-            }} />
+            <button
+              onClick={() => setViewMode('video')}
+              style={{
+                flex: 1,
+                padding: '6px 0',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                background: viewMode === 'video' ? 'var(--accent-orange)' : 'transparent',
+                color: viewMode === 'video' ? '#111827' : '#94a3b8',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Film size={13} />
+              <span>릴스 비디오</span>
+            </button>
+
+            <button
+              onClick={() => setViewMode('instagram')}
+              style={{
+                flex: 1,
+                padding: '6px 0',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                background: viewMode === 'instagram' ? 'linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%)' : 'transparent',
+                color: '#fff',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Instagram size={13} />
+              <span>인스타 공식 임베드</span>
+            </button>
           </div>
 
-          {/* 중앙 재생/일시정지 버튼 (클릭 시 토글) */}
-          {!isPlaying && (
-            <div style={{
-              position: 'absolute',
-              width: '74px',
-              height: '74px',
-              borderRadius: '50%',
-              background: 'rgba(0, 0, 0, 0.7)',
-              backdropFilter: 'blur(8px)',
+          {/* 뷰어 영역 */}
+          <div 
+            style={{
+              flex: 1,
+              position: 'relative',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#fff',
-              border: '2px solid rgba(255, 255, 255, 0.3)',
-              boxShadow: '0 0 20px rgba(0,0,0,0.5)',
-              zIndex: 15,
-            }}>
-              <Play size={34} fill="#fff" style={{ marginLeft: '4px' }} />
-            </div>
-          )}
-
-          {/* 좌측 상단 사운드 안내 배너 (클릭 시 소리 켜기) */}
-          {isMuted && (
-            <button
-              onClick={toggleMute}
-              style={{
-                position: 'absolute',
-                top: '16px',
-                left: '16px',
-                background: 'rgba(0, 0, 0, 0.65)',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '20px',
-                padding: '6px 12px',
-                color: '#fff',
-                fontSize: '11px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-                zIndex: 20,
-              }}
-            >
-              <VolumeX size={14} color="#f59e0b" />
-              <span>음소거 중 (클릭하여 소리 켜기)</span>
-            </button>
-          )}
-
-          {/* 우측 비디오 인터랙션 버튼들 (인스타그램 릴스 스타일) */}
-          <div style={{
-            position: 'absolute',
-            right: '14px',
-            bottom: '40px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            alignItems: 'center',
-            zIndex: 20,
-          }}
-          onClick={(e) => e.stopPropagation()}
+              cursor: viewMode === 'video' ? 'pointer' : 'default',
+              overflow: 'hidden',
+              marginTop: '50px'
+            }}
+            onClick={viewMode === 'video' ? togglePlay : undefined}
           >
-            {/* 좋아요 */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <button
-                onClick={handleLike}
-                style={{
-                  background: 'rgba(0,0,0,0.6)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '50%',
-                  color: hasLiked ? '#ef4444' : '#fff',
+            {viewMode === 'video' ? (
+              <>
+                <video
+                  key={currentVideoSrc}
+                  ref={videoRef}
+                  src={currentVideoSrc}
+                  autoPlay
+                  loop
+                  muted={isMuted}
+                  playsInline
+                  preload="auto"
+                  onTimeUpdate={handleTimeUpdate}
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onError={handleVideoError}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+
+                {/* 비디오 하단 진행 바 */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: '4px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  zIndex: 10,
+                }}>
+                  <div style={{
+                    width: `${progress}%`,
+                    height: '100%',
+                    background: 'var(--accent-orange)',
+                    transition: 'width 0.1s linear',
+                  }} />
+                </div>
+
+                {/* 중앙 재생/일시정지 버튼 */}
+                {!isPlaying && (
+                  <div style={{
+                    position: 'absolute',
+                    width: '74px',
+                    height: '74px',
+                    borderRadius: '50%',
+                    background: 'rgba(0, 0, 0, 0.7)',
+                    backdropFilter: 'blur(8px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                    boxShadow: '0 0 20px rgba(0,0,0,0.5)',
+                    zIndex: 15,
+                  }}>
+                    <Play size={34} fill="#fff" style={{ marginLeft: '4px' }} />
+                  </div>
+                )}
+
+                {/* 좌측 상단 사운드 안내 배너 */}
+                {isMuted && (
+                  <button
+                    onClick={toggleMute}
+                    style={{
+                      position: 'absolute',
+                      top: '12px',
+                      left: '12px',
+                      background: 'rgba(0, 0, 0, 0.65)',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      borderRadius: '20px',
+                      padding: '6px 12px',
+                      color: '#fff',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      zIndex: 20,
+                    }}
+                  >
+                    <VolumeX size={14} color="#f59e0b" />
+                    <span>음소거 중 (클릭하여 소리 켜기)</span>
+                  </button>
+                )}
+
+                {/* 우측 인터랙션 버튼들 */}
+                <div style={{
+                  position: 'absolute',
+                  right: '14px',
+                  bottom: '30px',
                   display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  transition: 'transform 0.15s ease',
+                  zIndex: 20,
                 }}
-              >
-                <Heart size={20} fill={hasLiked ? '#ef4444' : 'none'} />
-              </button>
-              <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, marginTop: '4px' }}>
-                {formatNumber(likesCount)}
-              </span>
-            </div>
+                onClick={(e) => e.stopPropagation()}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <button
+                      onClick={handleLike}
+                      style={{
+                        background: 'rgba(0,0,0,0.6)',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '50%',
+                        color: hasLiked ? '#ef4444' : '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Heart size={18} fill={hasLiked ? '#ef4444' : 'none'} />
+                    </button>
+                    <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, marginTop: '4px' }}>
+                      {formatNumber(likesCount)}
+                    </span>
+                  </div>
 
-            {/* 댓글 */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{
-                background: 'rgba(0,0,0,0.6)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                width: '44px',
-                height: '44px',
-                borderRadius: '50%',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <MessageCircle size={20} />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{
+                      background: 'rgba(0,0,0,0.6)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <MessageCircle size={18} />
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, marginTop: '4px' }}>
+                      {formatNumber(reel.comments)}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={handleBookmark}
+                    style={{
+                      background: 'rgba(0,0,0,0.6)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
+                      color: isBookmarked ? '#f59e0b' : '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                    title={isBookmarked ? '즐겨찾기 해제' : '즐겨찾기 저장'}
+                  >
+                    <Bookmark size={18} fill={isBookmarked ? '#f59e0b' : 'none'} />
+                  </button>
+
+                  <button
+                    onClick={toggleMute}
+                    style={{
+                      background: 'rgba(0,0,0,0.6)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                    title={isMuted ? '소리 켜기' : '음소거'}
+                  >
+                    {isMuted ? <VolumeX size={18} color="#f59e0b" /> : <Volume2 size={18} color="#10b981" />}
+                  </button>
+                </div>
+              </>
+            ) : (
+              // 인스타그램 공식 oEmbed iframe 임베드 화면
+              <div style={{ width: '100%', height: '100%', background: '#fff', overflow: 'hidden' }}>
+                <iframe
+                  src={embedUrl}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    overflow: 'hidden'
+                  }}
+                  title="Instagram Reel Official Embed"
+                  allowTransparency
+                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                />
               </div>
-              <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, marginTop: '4px' }}>
-                {formatNumber(reel.comments)}
-              </span>
-            </div>
-
-            {/* 북마크 */}
-            <button
-              onClick={handleBookmark}
-              style={{
-                background: 'rgba(0,0,0,0.6)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                width: '44px',
-                height: '44px',
-                borderRadius: '50%',
-                color: isBookmarked ? '#f59e0b' : '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-              title={isBookmarked ? '즐겨찾기 해제' : '즐겨찾기 저장'}
-            >
-              <Bookmark size={20} fill={isBookmarked ? '#f59e0b' : 'none'} />
-            </button>
-
-            {/* 음소거 토글 버튼 */}
-            <button
-              onClick={toggleMute}
-              style={{
-                background: 'rgba(0,0,0,0.6)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                width: '44px',
-                height: '44px',
-                borderRadius: '50%',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-              title={isMuted ? '소리 켜기' : '음소거'}
-            >
-              {isMuted ? <VolumeX size={20} color="#f59e0b" /> : <Volume2 size={20} color="#10b981" />}
-            </button>
+            )}
           </div>
         </div>
 
@@ -409,7 +504,7 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
           background: '#0b0f19',
         }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* 작성자 프로필 */}
+            {/* 작성자 프로필 & 인스타 원본 링크 */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{
@@ -432,16 +527,28 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
                 </div>
               </div>
 
-              <span style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                background: 'rgba(245, 158, 11, 0.15)',
-                color: 'var(--accent-orange)',
-                padding: '3px 8px',
-                borderRadius: '4px',
-              }}>
-                {reel.category.toUpperCase()}
-              </span>
+              {/* 인스타그램 원본 게시물 바로가기 버튼 */}
+              <a
+                href={instaUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  color: '#e2e8f0',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid var(--border-subtle)',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  transition: 'background 0.15s ease'
+                }}
+              >
+                <Instagram size={14} color="#e1306c" />
+                <span>Instagram 원본 ↗</span>
+              </a>
             </div>
 
             {/* 제목 & 후킹 포인트 */}

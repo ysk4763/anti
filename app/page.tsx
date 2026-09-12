@@ -2,7 +2,8 @@
 
 /**
  * AI INNO LAB - 릴스 벤치마킹 메인 페이지 (app/page.tsx)
- * 인기 릴스 30개씩 카테고리별 그리드 표시, 실제 동영상 재생 모달, 조회수순 정렬, 필터링, 원클릭 AI 기획안 생성 링크 제공
+ * 인스타그램 실시간 릴스 URL 추출 분석기, 카테고리별 그리드, 공식 임베드 & 동영상 재생 모달, 
+ * 조회수순 정렬, 필터링, 원클릭 AI 기획안 생성 링크를 제공합니다.
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -11,9 +12,12 @@ import { REEL_CATEGORIES, ReelBenchmark } from '@/lib/types';
 import BenchmarkCard from '@/components/BenchmarkCard';
 import ReelPlayerModal from '@/components/ReelPlayerModal';
 import { getBookmarkedReels } from '@/lib/storage';
-import { Sparkles, Search, RefreshCw } from 'lucide-react';
+import { Sparkles, Search, RefreshCw, Instagram, ArrowRight, Link as LinkIcon, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function BenchmarkPage() {
+  const router = useRouter();
+
   // 상태 관리
   const [mounted, setMounted] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -24,6 +28,11 @@ export default function BenchmarkPage() {
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activePlayReel, setActivePlayReel] = useState<ReelBenchmark | null>(null);
+
+  // 인스타그램 릴스 실시간 URL 분석기 상태
+  const [instaInputUrl, setInstaInputUrl] = useState<string>('');
+  const [isAnalyzingInsta, setIsAnalyzingInsta] = useState<boolean>(false);
+  const [instaError, setInstaError] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -40,6 +49,37 @@ export default function BenchmarkPage() {
   const allReels = useMemo(() => {
     return getAllBenchmarkReels();
   }, []);
+
+  // 인스타그램 URL 실시간 AI 분석 핸들러
+  const handleAnalyzeInstagramUrl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!instaInputUrl.trim()) return;
+
+    setIsAnalyzingInsta(true);
+    setInstaError(null);
+
+    try {
+      const res = await fetch('/api/instagram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: instaInputUrl.trim() }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || '인스타그램 릴스 정보를 불러올 수 없습니다.');
+      }
+
+      // 파싱된 릴스 데이터로 모달 열기 또는 기획 페이지로 이동
+      const parsedReel: ReelBenchmark = json.data;
+      setActivePlayReel(parsedReel);
+      setInstaInputUrl('');
+    } catch (err: any) {
+      setInstaError(err.message || '인스타그램 링크를 확인해주세요.');
+    } finally {
+      setIsAnalyzingInsta(false);
+    }
+  };
 
   // 필터링 및 정렬 처리
   const filteredReels = useMemo(() => {
@@ -105,16 +145,102 @@ export default function BenchmarkPage() {
   return (
     <div className="page-wrapper">
       {/* 1. 상단 타이틀 영역 */}
-      <div style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '20px' }}>
         <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>
-          릴스 벤치마킹
+          릴스 벤치마킹 & 인스타그램 실시간 분석
         </h1>
         <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-          조회수 100만 떡상 릴스를 실제 영상으로 감상하고, 내 콘텐츠 기획에 맞춤형으로 벤치마킹하세요. (카드를 클릭하면 동영상이 재생됩니다)
+          조회수 100만 떡상 릴스를 감상하고, 인스타그램 링크를 직접 넣어 AI로 분석 및 나만의 기획안을 제작하세요.
         </p>
       </div>
 
-      {/* 2. 카테고리 필터 탭바 */}
+      {/* 2. [신규] 인스타그램 릴스 URL 실시간 추출 및 분석 바 */}
+      <div className="glass-panel" style={{
+        marginBottom: '28px',
+        padding: '16px 20px',
+        background: 'linear-gradient(135deg, rgba(225, 48, 108, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%)',
+        border: '1px solid rgba(225, 48, 108, 0.25)',
+        borderRadius: '12px'
+      }}>
+        <form onSubmit={handleAnalyzeInstagramUrl} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 700, color: '#fff' }}>
+              <Instagram size={18} color="#e1306c" />
+              <span>실시간 인스타그램 릴스 링크 분석기</span>
+              <span style={{ fontSize: '10px', background: 'rgba(225, 48, 108, 0.2)', color: '#f43f5e', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(225, 48, 108, 0.4)' }}>
+                FREE API
+              </span>
+            </div>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              인스타 앱에서 [링크 복사] 후 아래에 붙여넣기만 하면 AI가 즉시 분석합니다.
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              background: 'rgba(0, 0, 0, 0.45)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '8px',
+              padding: '10px 14px'
+            }}>
+              <LinkIcon size={16} color="var(--text-muted)" />
+              <input
+                type="text"
+                value={instaInputUrl}
+                onChange={(e) => setInstaInputUrl(e.target.value)}
+                placeholder="인스타그램 릴스 URL을 입력하세요 (예: https://www.instagram.com/reel/C3_example/)"
+                style={{
+                  width: '100%',
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  color: '#fff',
+                  fontSize: '13px'
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isAnalyzingInsta || !instaInputUrl.trim()}
+              className="btn btn-primary"
+              style={{
+                padding: '10px 20px',
+                fontSize: '13px',
+                fontWeight: 700,
+                minWidth: '150px',
+                background: 'linear-gradient(135deg, #e1306c 0%, #f77737 100%)',
+                boxShadow: '0 4px 14px rgba(225, 48, 108, 0.35)'
+              }}
+            >
+              {isAnalyzingInsta ? (
+                <>
+                  <RefreshCw size={15} className="animate-spin" />
+                  <span>정보 추출 중...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={15} />
+                  <span>실시간 분석하기 ⚡</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {instaError && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f87171', fontSize: '12px', marginTop: '2px' }}>
+              <AlertCircle size={14} />
+              <span>{instaError}</span>
+            </div>
+          )}
+        </form>
+      </div>
+
+      {/* 3. 카테고리 필터 탭바 */}
       <div className="category-filter-bar">
         {REEL_CATEGORIES.map((cat) => (
           <button
@@ -130,7 +256,7 @@ export default function BenchmarkPage() {
         ))}
       </div>
 
-      {/* 3. 검색 및 정렬 드롭다운 바 */}
+      {/* 4. 검색 및 정렬 드롭다운 바 */}
       <div className="filter-header">
         {/* 검색 입력창 */}
         <div style={{
@@ -197,7 +323,7 @@ export default function BenchmarkPage() {
         </div>
       </div>
 
-      {/* 4. 릴스 카드 30개 그리드 리스트 */}
+      {/* 5. 릴스 카드 30개 그리드 리스트 */}
       {paginatedReels.length > 0 ? (
         <div className="reels-grid">
           {paginatedReels.map((reel) => (
@@ -205,70 +331,61 @@ export default function BenchmarkPage() {
               key={reel.id}
               reel={reel}
               onBookmarkChange={syncBookmarks}
-              onPlayReel={(targetReel) => setActivePlayReel(targetReel)}
+              onPlayReel={(r) => setActivePlayReel(r)}
             />
           ))}
         </div>
       ) : (
-        <div style={{
-          textAlign: 'center',
-          padding: '80px 20px',
-          background: 'var(--bg-secondary)',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-subtle)',
-          marginTop: '20px'
-        }}>
-          <Sparkles size={40} color="var(--accent-orange)" style={{ margin: '0 auto 16px' }} />
-          <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', marginBottom: '8px' }}>
-            검색 결과가 없습니다
-          </h3>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-            다른 카테고리를 선택하거나 검색어를 변경해 보세요.
-          </p>
+        <div className="empty-state glass-panel">
+          <Sparkles size={40} color="var(--accent-orange)" />
+          <h3>검색 결과가 없습니다</h3>
+          <p>다른 검색어나 카테고리를 선택해보세요.</p>
         </div>
       )}
 
-      {/* 5. 하단 페이지네이션 */}
+      {/* 6. 페이지네이션 (30개 단위) */}
       {totalPages > 1 && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: '8px',
-          marginTop: '40px'
-        }}>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
-              key={page}
-              onClick={() => {
-                setCurrentPage(page);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '8px',
-                border: page === currentPage ? '1px solid var(--accent-orange)' : '1px solid var(--border-subtle)',
-                background: page === currentPage ? 'var(--accent-orange)' : 'var(--bg-secondary)',
-                color: page === currentPage ? '#111827' : '#fff',
-                fontWeight: 700,
-                fontSize: '14px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              {page}
-            </button>
-          ))}
+        <div className="pagination-container">
+          <button
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            className="btn btn-secondary"
+            style={{ padding: '6px 14px', fontSize: '13px' }}
+          >
+            이전
+          </button>
+
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+              <button
+                key={num}
+                onClick={() => setCurrentPage(num)}
+                className={`page-num-btn ${currentPage === num ? 'active' : ''}`}
+              >
+                {num}
+              </button>
+            ))}
+          </div>
+
+          <button
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            className="btn btn-secondary"
+            style={{ padding: '6px 14px', fontSize: '13px' }}
+          >
+            다음
+          </button>
         </div>
       )}
 
-      {/* 6. 풀스크린 비디오 플레이어 모달 */}
-      <ReelPlayerModal
-        reel={activePlayReel}
-        onClose={() => setActivePlayReel(null)}
-        onBookmarkChange={syncBookmarks}
-      />
+      {/* 7. 릴스 비디오 재생 및 인스타그램 임베드 모달 */}
+      {activePlayReel && (
+        <ReelPlayerModal
+          reel={activePlayReel}
+          onClose={() => setActivePlayReel(null)}
+          onBookmarkChange={syncBookmarks}
+        />
+      )}
     </div>
   );
 }

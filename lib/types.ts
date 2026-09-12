@@ -21,6 +21,9 @@ export interface ReelBenchmark {
   duration: string;
   keyScenes: string[];
   isBookmarked?: boolean;
+  instagramUrl?: string;
+  embedUrl?: string;
+  shortcode?: string;
 }
 
 // 2. 스토리보드 개별 씬 모델
