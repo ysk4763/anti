@@ -2,8 +2,8 @@
 
 /**
  * AI INNO LAB - 릴스 벤치마킹 메인 페이지 (app/page.tsx)
- * 인스타그램 실시간 릴스 URL 추출 분석기, 카테고리별 그리드, 공식 임베드 & 동영상 재생 모달, 
- * 조회수순 정렬, 필터링, 원클릭 AI 기획안 생성 링크를 제공합니다.
+ * 인스타그램 실시간 릴스 URL 추출 분석기, Apify 실시간 대량 수집기(무료 $5 플랜 연동),
+ * 카테고리별 그리드, 공식 임베드 & 동영상 재생 모달, 조회수순 정렬, 원클릭 AI 기획안 생성을 지원합니다.
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -11,8 +11,19 @@ import { getAllBenchmarkReels } from '@/lib/benchmarkData';
 import { REEL_CATEGORIES, ReelBenchmark } from '@/lib/types';
 import BenchmarkCard from '@/components/BenchmarkCard';
 import ReelPlayerModal from '@/components/ReelPlayerModal';
+import ApifyConfigModal from '@/components/ApifyConfigModal';
 import { getBookmarkedReels } from '@/lib/storage';
-import { Sparkles, Search, RefreshCw, Instagram, ArrowRight, Link as LinkIcon, CheckCircle2, AlertCircle } from 'lucide-react';
+import { 
+  Sparkles, 
+  Search, 
+  RefreshCw, 
+  Instagram, 
+  Link as LinkIcon, 
+  AlertCircle, 
+  Key, 
+  DownloadCloud,
+  Layers
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function BenchmarkPage() {
@@ -34,6 +45,13 @@ export default function BenchmarkPage() {
   const [isAnalyzingInsta, setIsAnalyzingInsta] = useState<boolean>(false);
   const [instaError, setInstaError] = useState<string | null>(null);
 
+  // Apify 스크래퍼 상태
+  const [isApifyModalOpen, setIsApifyModalOpen] = useState<boolean>(false);
+  const [isScrapingApify, setIsScrapingApify] = useState<boolean>(false);
+  const [apifyKeyword, setApifyKeyword] = useState<string>('');
+  const [apifyCustomReels, setApifyCustomReels] = useState<ReelBenchmark[]>([]);
+  const [apifyNotice, setApifyNotice] = useState<string | null>(null);
+
   useEffect(() => {
     setMounted(true);
     const saved = getBookmarkedReels();
@@ -45,10 +63,18 @@ export default function BenchmarkPage() {
     setBookmarkedIds(new Set(saved.map((b) => b.id)));
   };
 
-  // 전체 레퍼런스 데이터 로드
-  const allReels = useMemo(() => {
+  // 전체 기본 레퍼런스 데이터 로드
+  const baseReels = useMemo(() => {
     return getAllBenchmarkReels();
   }, []);
+
+  // Apify로 수집된 릴스가 있을 경우 합산
+  const allReels = useMemo(() => {
+    if (apifyCustomReels.length > 0) {
+      return [...apifyCustomReels, ...baseReels];
+    }
+    return baseReels;
+  }, [apifyCustomReels, baseReels]);
 
   // 인스타그램 URL 실시간 AI 분석 핸들러
   const handleAnalyzeInstagramUrl = async (e: React.FormEvent) => {
@@ -70,14 +96,51 @@ export default function BenchmarkPage() {
         throw new Error(json.error || '인스타그램 릴스 정보를 불러올 수 없습니다.');
       }
 
-      // 파싱된 릴스 데이터로 모달 열기 또는 기획 페이지로 이동
+      // 파싱된 릴스 데이터로 모달 열기
       const parsedReel: ReelBenchmark = json.data;
+      setApifyCustomReels((prev) => [parsedReel, ...prev]);
       setActivePlayReel(parsedReel);
       setInstaInputUrl('');
     } catch (err: any) {
       setInstaError(err.message || '인스타그램 링크를 확인해주세요.');
     } finally {
       setIsAnalyzingInsta(false);
+    }
+  };
+
+  // Apify 키워드 실시간 릴스 30개 수집 핸들러
+  const handleApifyScrape = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const keywordToFetch = apifyKeyword.trim() || selectedCategory || '릴스';
+
+    setIsScrapingApify(true);
+    setApifyNotice(null);
+
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('apify_api_token') : '';
+
+      const res = await fetch('/api/apify-instagram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keyword: keywordToFetch,
+          category: selectedCategory,
+          limit: 30,
+          apiToken: token,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setApifyCustomReels(json.data);
+        setCurrentPage(1);
+        setApifyNotice(`'${keywordToFetch}' 키워드로 릴스 30개가 실시간 수집되었습니다! 🚀`);
+        setTimeout(() => setApifyNotice(null), 4000);
+      }
+    } catch (err: any) {
+      console.error('Apify 수집 오류:', err);
+    } finally {
+      setIsScrapingApify(false);
     }
   };
 
@@ -144,101 +207,201 @@ export default function BenchmarkPage() {
 
   return (
     <div className="page-wrapper">
-      {/* 1. 상단 타이틀 영역 */}
-      <div style={{ marginBottom: '20px' }}>
-        <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>
-          릴스 벤치마킹 & 인스타그램 실시간 분석
-        </h1>
-        <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-          조회수 100만 떡상 릴스를 감상하고, 인스타그램 링크를 직접 넣어 AI로 분석 및 나만의 기획안을 제작하세요.
-        </p>
+      {/* 1. 상단 타이틀 및 Apify 설정 버튼 영역 */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+        <div>
+          <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>
+            인기 릴스 벤치마킹 & 실시간 스크래퍼
+          </h1>
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+            조회수 100만 떡상 릴스를 감상하고, Apify 무료 스크래퍼 및 인스타 링크로 최신 릴스를 실시간 수집하세요.
+          </p>
+        </div>
+
+        {/* Apify 토큰 설정 버튼 */}
+        <button
+          onClick={() => setIsApifyModalOpen(true)}
+          className="btn"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'rgba(2, 132, 199, 0.15)',
+            border: '1px solid rgba(56, 189, 248, 0.35)',
+            color: '#38bdf8',
+            padding: '9px 16px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: 'pointer'
+          }}
+        >
+          <Key size={15} />
+          <span>Apify 스크래퍼 설정 ($5 무료)</span>
+        </button>
       </div>
 
-      {/* 2. [신규] 인스타그램 릴스 URL 실시간 추출 및 분석 바 */}
-      <div className="glass-panel" style={{
-        marginBottom: '28px',
-        padding: '16px 20px',
-        background: 'linear-gradient(135deg, rgba(225, 48, 108, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%)',
-        border: '1px solid rgba(225, 48, 108, 0.25)',
-        borderRadius: '12px'
+      {/* 2. 인스타그램 실시간 분석 바 & Apify 키워드 수집기 듀얼 패널 */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1.2fr 1fr',
+        gap: '16px',
+        marginBottom: '28px'
       }}>
-        <form onSubmit={handleAnalyzeInstagramUrl} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 700, color: '#fff' }}>
-              <Instagram size={18} color="#e1306c" />
-              <span>실시간 인스타그램 릴스 링크 분석기</span>
-              <span style={{ fontSize: '10px', background: 'rgba(225, 48, 108, 0.2)', color: '#f43f5e', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(225, 48, 108, 0.4)' }}>
-                FREE API
-              </span>
+        {/* [패널 1] 인스타그램 릴스 단일 URL 분석기 */}
+        <div className="glass-panel" style={{
+          padding: '16px 18px',
+          background: 'linear-gradient(135deg, rgba(225, 48, 108, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%)',
+          border: '1px solid rgba(225, 48, 108, 0.25)',
+          borderRadius: '12px'
+        }}>
+          <form onSubmit={handleAnalyzeInstagramUrl} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, color: '#fff' }}>
+                <Instagram size={16} color="#e1306c" />
+                <span>인스타 단일 릴스 URL 분석</span>
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>링크 붙여넣기</span>
             </div>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              인스타 앱에서 [링크 복사] 후 아래에 붙여넣기만 하면 AI가 즉시 분석합니다.
-            </span>
-          </div>
 
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <div style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              background: 'rgba(0, 0, 0, 0.45)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: '8px',
-              padding: '10px 14px'
-            }}>
-              <LinkIcon size={16} color="var(--text-muted)" />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'rgba(0, 0, 0, 0.45)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '6px',
+                padding: '8px 12px'
+              }}>
+                <LinkIcon size={14} color="var(--text-muted)" />
+                <input
+                  type="text"
+                  value={instaInputUrl}
+                  onChange={(e) => setInstaInputUrl(e.target.value)}
+                  placeholder="https://www.instagram.com/reel/..."
+                  style={{
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    color: '#fff',
+                    fontSize: '12px'
+                  }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isAnalyzingInsta || !instaInputUrl.trim()}
+                className="btn btn-primary"
+                style={{
+                  padding: '8px 14px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #e1306c 0%, #f77737 100%)',
+                }}
+              >
+                {isAnalyzingInsta ? <RefreshCw size={14} className="animate-spin" /> : '분석하기'}
+              </button>
+            </div>
+
+            {instaError && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#f87171', fontSize: '11px' }}>
+                <AlertCircle size={12} />
+                <span>{instaError}</span>
+              </div>
+            )}
+          </form>
+        </div>
+
+        {/* [패널 2] Apify 키워드/해시태그 실시간 릴스 30개 수집기 */}
+        <div className="glass-panel" style={{
+          padding: '16px 18px',
+          background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(56, 189, 248, 0.08) 100%)',
+          border: '1px solid rgba(56, 189, 248, 0.25)',
+          borderRadius: '12px'
+        }}>
+          <form onSubmit={handleApifyScrape} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, color: '#fff' }}>
+                <DownloadCloud size={16} color="#38bdf8" />
+                <span>Apify 키워드 실시간 수집</span>
+                <span style={{ fontSize: '10px', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '1px 5px', borderRadius: '4px' }}>
+                  30개 일괄
+                </span>
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>무료 $5 플랜 연동</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
               <input
                 type="text"
-                value={instaInputUrl}
-                onChange={(e) => setInstaInputUrl(e.target.value)}
-                placeholder="인스타그램 릴스 URL을 입력하세요 (예: https://www.instagram.com/reel/C3_example/)"
+                value={apifyKeyword}
+                onChange={(e) => setApifyKeyword(e.target.value)}
+                placeholder="키워드 입력 (예: 캠핑, 뷰티, 재테크)..."
                 style={{
-                  width: '100%',
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
+                  flex: 1,
+                  background: 'rgba(0, 0, 0, 0.45)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
                   color: '#fff',
-                  fontSize: '13px'
+                  fontSize: '12px',
+                  outline: 'none'
                 }}
               />
-            </div>
 
-            <button
-              type="submit"
-              disabled={isAnalyzingInsta || !instaInputUrl.trim()}
-              className="btn btn-primary"
-              style={{
-                padding: '10px 20px',
-                fontSize: '13px',
-                fontWeight: 700,
-                minWidth: '150px',
-                background: 'linear-gradient(135deg, #e1306c 0%, #f77737 100%)',
-                boxShadow: '0 4px 14px rgba(225, 48, 108, 0.35)'
-              }}
-            >
-              {isAnalyzingInsta ? (
-                <>
-                  <RefreshCw size={15} className="animate-spin" />
-                  <span>정보 추출 중...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={15} />
-                  <span>실시간 분석하기 ⚡</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {instaError && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f87171', fontSize: '12px', marginTop: '2px' }}>
-              <AlertCircle size={14} />
-              <span>{instaError}</span>
+              <button
+                type="submit"
+                disabled={isScrapingApify}
+                className="btn btn-indigo"
+                style={{
+                  padding: '8px 14px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)',
+                  color: '#fff',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {isScrapingApify ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>수집 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} />
+                    <span>실시간 수집 🚀</span>
+                  </>
+                )}
+              </button>
             </div>
-          )}
-        </form>
+          </form>
+        </div>
       </div>
+
+      {/* 실시간 알림 배너 */}
+      {apifyNotice && (
+        <div style={{
+          background: 'rgba(16, 185, 129, 0.15)',
+          border: '1px solid rgba(16, 185, 129, 0.35)',
+          color: '#34d399',
+          padding: '10px 16px',
+          borderRadius: '8px',
+          fontSize: '13px',
+          fontWeight: 600,
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <Sparkles size={16} />
+          <span>{apifyNotice}</span>
+        </div>
+      )}
 
       {/* 3. 카테고리 필터 탭바 */}
       <div className="category-filter-bar">
@@ -386,6 +549,12 @@ export default function BenchmarkPage() {
           onBookmarkChange={syncBookmarks}
         />
       )}
+
+      {/* 8. Apify API 설정 팝업 모달 */}
+      <ApifyConfigModal
+        isOpen={isApifyModalOpen}
+        onClose={() => setIsApifyModalOpen(false)}
+      />
     </div>
   );
 }
