@@ -3,7 +3,7 @@
 /**
  * AI INNO LAB - 나만의 릴스 AI 기획 화면 (app/planning/page.tsx)
  * 레퍼런스 분석, 맞춤형 수정 옵션 입력, 스토리보드/대본/촬영가이드/캡션 실시간 생성 및
- * 시덴스 2.5 및 구글 FLOW 프롬프트로의 원클릭 연계 제작을 완벽 지원합니다.
+ * 고화질 PDF 다운로드, 시덴스 2.5 및 구글 FLOW 프롬프트로의 원클릭 연계 제작을 완벽 지원합니다.
  */
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -12,6 +12,7 @@ import { getAllBenchmarkReels } from '@/lib/benchmarkData';
 import { ReelBenchmark, ReelPlan } from '@/lib/types';
 import { generateReelPlan } from '@/lib/promptTemplates';
 import { saveReelPlan, getCurrentPlan, setCurrentPlan } from '@/lib/storage';
+import { exportPlanToPdf } from '@/lib/pdfExport';
 import { 
   Sparkles, 
   Layers, 
@@ -25,7 +26,8 @@ import {
   RefreshCw,
   Film,
   Camera,
-  FileText
+  FileText,
+  FileType
 } from 'lucide-react';
 
 function PlanningContent() {
@@ -36,6 +38,7 @@ function PlanningContent() {
   const allReels = getAllBenchmarkReels();
   const [selectedReel, setSelectedReel] = useState<ReelBenchmark>(allReels[0]);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // 수정 옵션 상태들
@@ -116,43 +119,15 @@ function PlanningContent() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  // 전체 기획안 다운로드 (TXT 파일)
-  const handleDownload = () => {
+  // PDF 파일 다운로드 처리 함수
+  const handleDownloadPdf = async () => {
     if (!currentPlan) return;
-    const content = `[AI INNO LAB - 릴스 기획안 리포트]
-=========================================
-기획 프로젝트명: ${currentPlan.title}
-타깃: ${currentPlan.targetAudience}
-톤앤매너: ${currentPlan.toneAndManner}
-영상 길이: ${currentPlan.duration}
-
-[1. 썸네일 제목]
-${currentPlan.thumbnailTitle}
-
-[2. 촬영 가이드]
-${currentPlan.shootingGuide}
-
-[3. 전체 낭독 대본]
-${currentPlan.script}
-
-[4. 스토리보드 씬별 연출]
-${currentPlan.storyboard.map(s => `Scene ${s.sceneNumber} (${s.timeRange})
-- 비주얼: ${s.visualDescription}
-- 대사: ${s.dialogue}
-- 카메라: ${s.cameraWork}
-- 음향: ${s.bgmAndSound}`).join('\n\n')}
-
-[5. 인스타그램/유튜브 캡션 및 해시태그]
-${currentPlan.caption}
-=========================================`;
-
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Reel_Plan_${currentPlan.id}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    setIsExportingPdf(true);
+    try {
+      await exportPlanToPdf(currentPlan);
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   // 시덴스 2.5 및 구글 FLOW로 이동
@@ -432,7 +407,7 @@ ${currentPlan.caption}
         </div>
       </div>
 
-      {/* 3. AI 로딩 화면 (스크린샷 1번 완벽 재현) */}
+      {/* 3. AI 로딩 화면 */}
       {isGenerating && (
         <div className="glass-panel" style={{
           textAlign: 'center',
@@ -466,7 +441,7 @@ ${currentPlan.caption}
         </div>
       )}
 
-      {/* 4. 최종 기획안 렌더링 영역 (스크린샷 4번 완벽 재현) */}
+      {/* 4. 최종 기획안 렌더링 영역 */}
       {currentPlan && !isGenerating && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* 기획안 상단 타이틀 & 원클릭 연계 액션 바 */}
@@ -498,7 +473,7 @@ ${currentPlan.caption}
               </p>
             </div>
 
-            {/* 연계 액션 버튼 모음 (신규 시덴스 2.5 & 구글 FLOW 연계) */}
+            {/* 연계 액션 버튼 모음 (PDF 다운로드 및 비디오 프롬프트 연계) */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <button
                 onClick={goToSeedance}
@@ -526,13 +501,24 @@ ${currentPlan.caption}
                 <ArrowRight size={13} />
               </button>
 
+              {/* PDF 다운로드 버튼 */}
               <button
-                onClick={handleDownload}
-                className="btn btn-secondary"
-                style={{ fontSize: '13px', padding: '9px 14px' }}
+                onClick={handleDownloadPdf}
+                className="btn btn-primary"
+                style={{ fontSize: '13px', padding: '9px 16px' }}
+                disabled={isExportingPdf}
               >
-                <Download size={15} />
-                <span>기획안 다운로드</span>
+                {isExportingPdf ? (
+                  <>
+                    <RefreshCw size={15} className="animate-spin" />
+                    <span>PDF 생성 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileType size={15} />
+                    <span>기획안 PDF 다운로드</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
