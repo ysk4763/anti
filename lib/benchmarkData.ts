@@ -1,7 +1,6 @@
 /**
- * AI INNO LAB - 검증된 초고속 CDN 비디오 스트림 및 유튜브 쇼츠 연동 데이터셋
- * 브라우저 CORS 및 핫링크 차단 없이 100% 즉시 재생되는 전 세계 CDN MP4 스트림과
- * 유튜브 쇼츠 / 인스타그램 릴스 임베드 ID를 함께 제공합니다.
+ * AI INNO LAB - 릴스 벤치마킹 데이터셋 및 검증된 CDN 비디오 스트림
+ * React Hydration Error(#441)를 100% 방지하기 위해 일관된 고정 수치(Deterministic Data)를 적용합니다.
  */
 
 import { ReelBenchmark } from './types';
@@ -36,7 +35,7 @@ const SAMPLE_THUMBNAILS = {
   business: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&auto=format&fit=crop&q=80',
 };
 
-// 30개 기본 프리미엄 릴스 벤치마킹 데이터 (검증된 비디오 스트림 100% 매핑)
+// 30개 기본 프리미엄 릴스 벤치마킹 데이터 (고정된 일관된 수치 적용)
 export const INITIAL_BENCHMARK_REELS: ReelBenchmark[] = [
   {
     id: 'reel-1',
@@ -260,34 +259,34 @@ export const INITIAL_BENCHMARK_REELS: ReelBenchmark[] = [
   }
 ];
 
-// 30개 전체 목록 생성 (모든 항목에 유효한 고속 CDN 비디오 스트림 100% 매핑)
+// 고정된 시드 데이터 목록 (총 30개)
+const ADDITIONAL_STATIC_REELS = [
+  { name: '테크 브레이커', handle: '@tech_breaker', cat: 'ai', img: SAMPLE_THUMBNAILS.tech, views: 24500000, likes: 1250000, comments: 14200, title: 'AI가 만든 3초 영상으로 월 1000만원 번 방법' },
+  { name: '리빙메이트', handle: '@living_mate_kr', cat: 'living', img: SAMPLE_THUMBNAILS.interior, views: 18700000, likes: 980000, comments: 8700, title: '다이소 1000원짜리로 주방 싱크대 2배 넓게 쓰는 법' },
+  { name: '글로벌 트래블러', handle: '@travel_global', cat: 'vlog', img: SAMPLE_THUMBNAILS.travel, views: 34200000, likes: 1670000, comments: 22000, title: '한국인 99%가 모르는 일본 오사카 숨은 온천 마을' },
+  { name: '비즈니스 치트키', handle: '@biz_cheatkey', cat: 'info', img: SAMPLE_THUMBNAILS.business, views: 12900000, likes: 640000, comments: 5900, title: '말 잘하는 사람들의 3가지 침묵 화법 공식' },
+  { name: '홈트 요정', handle: '@home_yoga_queen', cat: 'fitness', img: SAMPLE_THUMBNAILS.fitness, views: 29800000, likes: 1450000, comments: 11000, title: '거북목 10초 만에 펴지는 기적의 벽 스트레칭' },
+  { name: '트렌드 뷰티', handle: '@trend_beauty_lab', cat: 'fashion', img: SAMPLE_THUMBNAILS.fashion, views: 16400000, likes: 890000, comments: 7800, title: '올리브영 세일 때 안 사면 후회하는 톤업 선크림 1위' },
+  { name: '달콤한 디저트', handle: '@sweet_baking_diy', cat: 'food', img: SAMPLE_THUMBNAILS.food, views: 21500000, likes: 1120000, comments: 9400, title: '에어프라이어로 15분 완성 바스크 치즈케이크' },
+  { name: '냥멍 연구소', handle: '@pet_cute_moment', cat: 'humor', img: SAMPLE_THUMBNAILS.cat, views: 38900000, likes: 2100000, comments: 26000, title: '산책 가자니까 죽은 척하는 시바견 연기력' },
+  { name: '육아 꿀팁 창고', handle: '@smart_parenting', cat: 'vlog', img: SAMPLE_THUMBNAILS.baby, views: 14300000, likes: 720000, comments: 6300, title: '아이 떼쓰기 1초 만에 멈추게 하는 마법의 질문' },
+  { name: '혁신 공구마켓', handle: '@inno_gonggu', cat: 'product', img: SAMPLE_THUMBNAILS.tech, views: 27600000, likes: 1380000, comments: 13500, title: '물 없이 변기 찌든 때 싹 녹이는 발포 클리너' },
+  { name: 'AI 크리에이터 랩', handle: '@ai_inno_creator', cat: 'ai', img: SAMPLE_THUMBNAILS.ai, views: 31200000, likes: 1540000, comments: 17800, title: 'Seedance 2.5로 영화 같은 카메라 무빙 만드는 법' },
+  { name: '캠핑 마스터', handle: '@camp_master_k', cat: 'info', img: SAMPLE_THUMBNAILS.camp, views: 19800000, likes: 960000, comments: 8400, title: '가을 캠핑 불멍할 때 고구마 꿀맛으로 굽는 호일 싸기' },
+  { name: '성형외과 비밀노트', handle: '@ps_secret_dr', cat: 'info', img: SAMPLE_THUMBNAILS.doctor, views: 15200000, likes: 780000, comments: 6900, title: '팔자주름 없애는 동안 마사지 1분 루틴' },
+  { name: '오피스 룩북', handle: '@lookbook_korea', cat: 'fashion', img: SAMPLE_THUMBNAILS.fashion, views: 23100000, likes: 1190000, comments: 10200, title: '체형별 슬랙스 실패 없는 기장 수선 가이드' },
+  { name: '단백질 식단', handle: '@protein_diet_king', cat: 'fitness', img: SAMPLE_THUMBNAILS.food, views: 17400000, likes: 880000, comments: 7500, title: '닭가슴살 퍽퍽하지 않게 촉촉하게 굽는 올리브유 숙성법' },
+  { name: '감성 인테리어', handle: '@mood_interior_365', cat: 'living', img: SAMPLE_THUMBNAILS.interior, views: 28400000, likes: 1420000, comments: 12900, title: '원룸 전셋집 못 안 박고 액자 감성 설치하는 꿀팁' },
+  { name: '인스타 릴스 해킹', handle: '@reels_algorithm_god', cat: 'ai', img: SAMPLE_THUMBNAILS.tech, views: 33500000, likes: 1750000, comments: 19400, title: '릴스 업로드 황금 시간대와 탐색 탭 노출 알고리즘' },
+  { name: '주말 어디가지', handle: '@weekend_trip_korea', cat: 'vlog', img: SAMPLE_THUMBNAILS.travel, views: 22800000, likes: 1160000, comments: 9800, title: '지금 가면 단풍 절정인 숨겨진 서울 근교 숲길' },
+  { name: '초간단 야식', handle: '@midnight_snack_pro', cat: 'food', img: SAMPLE_THUMBNAILS.food, views: 26300000, likes: 1340000, comments: 11500, title: '라이스페이퍼로 5분 만에 만드는 쫀득 불닭 떡볶이' },
+  { name: '아이디어 굿즈', handle: '@gadget_hunter_kr', cat: 'product', img: SAMPLE_THUMBNAILS.tech, views: 19100000, likes: 920000, comments: 8100, title: '자석으로 1초 탈부착 가능한 차량용 스마트폰 거치대' }
+];
+
 export function getAllBenchmarkReels(): ReelBenchmark[] {
   const baseList = [...INITIAL_BENCHMARK_REELS];
 
-  const authors = [
-    { name: '테크 브레이커', handle: '@tech_breaker', cat: 'ai', img: SAMPLE_THUMBNAILS.tech, title: 'AI가 만든 3초 영상으로 월 1000만원 번 방법' },
-    { name: '리빙메이트', handle: '@living_mate_kr', cat: 'living', img: SAMPLE_THUMBNAILS.interior, title: '다이소 1000원짜리로 주방 싱크대 2배 넓게 쓰는 법' },
-    { name: '글로벌 트래블러', handle: '@travel_global', cat: 'vlog', img: SAMPLE_THUMBNAILS.travel, title: '한국인 99%가 모르는 일본 오사카 숨은 온천 마을' },
-    { name: '비즈니스 치트키', handle: '@biz_cheatkey', cat: 'info', img: SAMPLE_THUMBNAILS.business, title: '말 잘하는 사람들의 3가지 침묵 화법 공식' },
-    { name: '홈트 요정', handle: '@home_yoga_queen', cat: 'fitness', img: SAMPLE_THUMBNAILS.fitness, title: '거북목 10초 만에 펴지는 기적의 벽 스트레칭' },
-    { name: '트렌드 뷰티', handle: '@trend_beauty_lab', cat: 'fashion', img: SAMPLE_THUMBNAILS.fashion, title: '올리브영 세일 때 안 사면 후회하는 톤업 선크림 1위' },
-    { name: '달콤한 디저트', handle: '@sweet_baking_diy', cat: 'food', img: SAMPLE_THUMBNAILS.food, title: '에어프라이어로 15분 완성 바스크 치즈케이크' },
-    { name: '냥멍 연구소', handle: '@pet_cute_moment', cat: 'humor', img: SAMPLE_THUMBNAILS.cat, title: '산책 가자니까 죽은 척하는 시바견 연기력' },
-    { name: '육아 꿀팁 창고', handle: '@smart_parenting', cat: 'vlog', img: SAMPLE_THUMBNAILS.baby, title: '아이 떼쓰기 1초 만에 멈추게 하는 마법의 질문' },
-    { name: '혁신 공구마켓', handle: '@inno_gonggu', cat: 'product', img: SAMPLE_THUMBNAILS.tech, title: '물 없이 변기 찌든 때 싹 녹이는 발포 클리너' },
-    { name: 'AI 크리에이터 랩', handle: '@ai_inno_creator', cat: 'ai', img: SAMPLE_THUMBNAILS.ai, title: 'Seedance 2.5로 영화 같은 카메라 무빙 만드는 법' },
-    { name: '캠핑 마스터', handle: '@camp_master_k', cat: 'info', img: SAMPLE_THUMBNAILS.camp, title: '가을 캠핑 불멍할 때 고구마 꿀맛으로 굽는 호일 싸기' },
-    { name: '성형외과 비밀노트', handle: '@ps_secret_dr', cat: 'info', img: SAMPLE_THUMBNAILS.doctor, title: '팔자주름 없애는 동안 마사지 1분 루틴' },
-    { name: '오피스 룩북', handle: '@lookbook_korea', cat: 'fashion', img: SAMPLE_THUMBNAILS.fashion, title: '체형별 슬랙스 실패 없는 기장 수선 가이드' },
-    { name: '단백질 식단', handle: '@protein_diet_king', cat: 'fitness', img: SAMPLE_THUMBNAILS.food, title: '닭가슴살 퍽퍽하지 않게 촉촉하게 굽는 올리브유 숙성법' },
-    { name: '감성 인테리어', handle: '@mood_interior_365', cat: 'living', img: SAMPLE_THUMBNAILS.interior, title: '원룸 전셋집 못 안 박고 액자 감성 설치하는 꿀팁' },
-    { name: '인스타 릴스 해킹', handle: '@reels_algorithm_god', cat: 'ai', img: SAMPLE_THUMBNAILS.tech, title: '릴스 업로드 황금 시간대와 탐색 탭 노출 알고리즘' },
-    { name: '주말 어디가지', handle: '@weekend_trip_korea', cat: 'vlog', img: SAMPLE_THUMBNAILS.travel, title: '지금 가면 단풍 절정인 숨겨진 서울 근교 숲길' },
-    { name: '초간단 야식', handle: '@midnight_snack_pro', cat: 'food', img: SAMPLE_THUMBNAILS.food, title: '라이스페이퍼로 5분 만에 만드는 쫀득 불닭 떡볶이' },
-    { name: '아이디어 굿즈', handle: '@gadget_hunter_kr', cat: 'product', img: SAMPLE_THUMBNAILS.tech, title: '자석으로 1초 탈부착 가능한 차량용 스마트폰 거치대' }
-  ];
-
-  authors.forEach((item, index) => {
+  ADDITIONAL_STATIC_REELS.forEach((item, index) => {
     const videoStream = VERIFIED_VIDEO_STREAMS[index % VERIFIED_VIDEO_STREAMS.length];
     baseList.push({
       id: `reel-${index + 11}`,
@@ -295,9 +294,9 @@ export function getAllBenchmarkReels(): ReelBenchmark[] {
       authorHandle: item.handle,
       category: item.cat,
       title: item.title,
-      views: Math.floor(1000000 + Math.random() * 45000000),
-      likes: Math.floor(50000 + Math.random() * 2500000),
-      comments: Math.floor(1000 + Math.random() * 35000),
+      views: item.views,
+      likes: item.likes,
+      comments: item.comments,
       date: '09.10',
       thumbnailUrl: item.img,
       videoUrl: videoStream,

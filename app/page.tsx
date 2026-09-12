@@ -11,10 +11,11 @@ import { REEL_CATEGORIES, ReelBenchmark } from '@/lib/types';
 import BenchmarkCard from '@/components/BenchmarkCard';
 import ReelPlayerModal from '@/components/ReelPlayerModal';
 import { getBookmarkedReels } from '@/lib/storage';
-import { Sparkles, Search, RefreshCw, Play } from 'lucide-react';
+import { Sparkles, Search, RefreshCw } from 'lucide-react';
 
 export default function BenchmarkPage() {
   // 상태 관리
+  const [mounted, setMounted] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'views' | 'likes' | 'latest'>('views');
   const [timeRange, setTimeRange] = useState<string>('all');
@@ -24,15 +25,16 @@ export default function BenchmarkPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activePlayReel, setActivePlayReel] = useState<ReelBenchmark | null>(null);
 
-  // 로컬 북마크 동기화
+  useEffect(() => {
+    setMounted(true);
+    const saved = getBookmarkedReels();
+    setBookmarkedIds(new Set(saved.map((b) => b.id)));
+  }, []);
+
   const syncBookmarks = () => {
     const saved = getBookmarkedReels();
     setBookmarkedIds(new Set(saved.map((b) => b.id)));
   };
-
-  useEffect(() => {
-    syncBookmarks();
-  }, []);
 
   // 전체 레퍼런스 데이터 로드
   const allReels = useMemo(() => {
@@ -88,6 +90,17 @@ export default function BenchmarkPage() {
       setIsLoading(false);
     }, 400);
   };
+
+  if (!mounted) {
+    return (
+      <div className="page-wrapper" style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)' }}>
+          <RefreshCw size={20} className="animate-spin" />
+          <span>AI INNO LAB 로딩 중...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-wrapper">
@@ -184,7 +197,7 @@ export default function BenchmarkPage() {
         </div>
       </div>
 
-      {/* 4. 릴스 카드 30개 그리드 리스트 (호버 시 인라인 재생 & 클릭 시 모달 재생) */}
+      {/* 4. 릴스 카드 30개 그리드 리스트 */}
       {paginatedReels.length > 0 ? (
         <div className="reels-grid">
           {paginatedReels.map((reel) => (
