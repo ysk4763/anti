@@ -2,15 +2,16 @@
 
 /**
  * AI INNO LAB - 릴스 벤치마킹 메인 페이지 (app/page.tsx)
- * 인기 릴스 30개씩 카테고리별 그리드 표시, 조회수순 정렬, 필터링, 원클릭 AI 기획안 생성 링크 제공
+ * 인기 릴스 30개씩 카테고리별 그리드 표시, 실제 동영상 재생 모달, 조회수순 정렬, 필터링, 원클릭 AI 기획안 생성 링크 제공
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { getAllBenchmarkReels } from '@/lib/benchmarkData';
 import { REEL_CATEGORIES, ReelBenchmark } from '@/lib/types';
 import BenchmarkCard from '@/components/BenchmarkCard';
+import ReelPlayerModal from '@/components/ReelPlayerModal';
 import { getBookmarkedReels } from '@/lib/storage';
-import { Sparkles, Search, SlidersHorizontal, RefreshCw } from 'lucide-react';
+import { Sparkles, Search, RefreshCw, Play } from 'lucide-react';
 
 export default function BenchmarkPage() {
   // 상태 관리
@@ -21,6 +22,7 @@ export default function BenchmarkPage() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [activePlayReel, setActivePlayReel] = useState<ReelBenchmark | null>(null);
 
   // 로컬 북마크 동기화
   const syncBookmarks = () => {
@@ -95,7 +97,7 @@ export default function BenchmarkPage() {
           릴스 벤치마킹
         </h1>
         <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-          조회수 100만 떡상 릴스를 분석하고, 내 콘텐츠 기획에 맞춤형으로 벤치마킹하세요.
+          조회수 100만 떡상 릴스를 실제 영상으로 감상하고, 내 콘텐츠 기획에 맞춤형으로 벤치마킹하세요. (카드를 클릭하면 동영상이 재생됩니다)
         </p>
       </div>
 
@@ -182,7 +184,7 @@ export default function BenchmarkPage() {
         </div>
       </div>
 
-      {/* 4. 릴스 카드 30개 그리드 리스트 */}
+      {/* 4. 릴스 카드 30개 그리드 리스트 (호버 시 인라인 재생 & 클릭 시 모달 재생) */}
       {paginatedReels.length > 0 ? (
         <div className="reels-grid">
           {paginatedReels.map((reel) => (
@@ -190,6 +192,7 @@ export default function BenchmarkPage() {
               key={reel.id}
               reel={reel}
               onBookmarkChange={syncBookmarks}
+              onPlayReel={(targetReel) => setActivePlayReel(targetReel)}
             />
           ))}
         </div>
@@ -212,7 +215,7 @@ export default function BenchmarkPage() {
         </div>
       )}
 
-      {/* 5. 하단 페이지네이션 (30개 초과 시) */}
+      {/* 5. 하단 페이지네이션 */}
       {totalPages > 1 && (
         <div style={{
           display: 'flex',
@@ -246,6 +249,13 @@ export default function BenchmarkPage() {
           ))}
         </div>
       )}
+
+      {/* 6. 풀스크린 비디오 플레이어 모달 */}
+      <ReelPlayerModal
+        reel={activePlayReel}
+        onClose={() => setActivePlayReel(null)}
+        onBookmarkChange={syncBookmarks}
+      />
     </div>
   );
 }

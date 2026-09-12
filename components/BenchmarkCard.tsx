@@ -2,18 +2,19 @@
 
 /**
  * AI INNO LAB - 릴스 벤치마킹 카드 컴포넌트
- * 숏부스터의 UI를 완벽하게 구현하여 썸네일, 통계, 북마크 및 "나만의 릴스로 생성" 링크를 제공합니다.
+ * 마우스 호버 시 인라인 비디오 프리뷰 자동 재생 & 클릭 시 풀스크린 비디오 플레이어 모달 연동
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ReelBenchmark } from '@/lib/types';
-import { Bookmark, Play, Heart, MessageCircle, Zap } from 'lucide-react';
+import { Bookmark, Play, Heart, MessageCircle, Zap, Film } from 'lucide-react';
 import { toggleBookmarkReel } from '@/lib/storage';
 import Link from 'next/link';
 
 interface BenchmarkCardProps {
   reel: ReelBenchmark;
   onBookmarkChange?: () => void;
+  onPlayReel?: (reel: ReelBenchmark) => void;
 }
 
 // 조회수/좋아요 수치를 만 단위로 읽기 쉽게 포맷팅 (예: 30,171,300 -> 3017.1만)
@@ -27,8 +28,10 @@ function formatNumber(num: number): string {
   return num.toLocaleString();
 }
 
-export default function BenchmarkCard({ reel, onBookmarkChange }: BenchmarkCardProps) {
+export default function BenchmarkCard({ reel, onBookmarkChange, onPlayReel }: BenchmarkCardProps) {
   const [isBookmarked, setIsBookmarked] = useState<boolean>(reel.isBookmarked || false);
+  const [isHovered, setIsHovered] = useState<boolean>(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const handleBookmarkClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -38,17 +41,83 @@ export default function BenchmarkCard({ reel, onBookmarkChange }: BenchmarkCardP
     if (onBookmarkChange) onBookmarkChange();
   };
 
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {});
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+    }
+  };
+
+  const handleCardClick = () => {
+    if (onPlayReel) {
+      onPlayReel(reel);
+    }
+  };
+
   return (
-    <div className="reel-card">
-      {/* 1. 썸네일 박스 & 오버레이 영역 */}
-      <div className="reel-thumbnail-box">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={reel.thumbnailUrl}
-          alt={reel.title}
-          className="reel-thumbnail-img"
-          loading="lazy"
-        />
+    <div
+      className="reel-card"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* 1. 썸네일 및 비디오 재생 박스 영역 */}
+      <div
+        className="reel-thumbnail-box"
+        onClick={handleCardClick}
+        style={{ cursor: 'pointer' }}
+      >
+        {/* 마우스 호버 시 비디오 자동 프리뷰 재생 */}
+        {reel.videoUrl && isHovered ? (
+          <video
+            ref={videoRef}
+            src={reel.videoUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="reel-thumbnail-img"
+            style={{ objectFit: 'cover' }}
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={reel.thumbnailUrl}
+            alt={reel.title}
+            className="reel-thumbnail-img"
+            loading="lazy"
+          />
+        )}
+
+        {/* 재생 가능 인디케이터 아이콘 (호버 전 표시) */}
+        {!isHovered && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '38px',
+            height: '38px',
+            borderRadius: '50%',
+            background: 'rgba(0, 0, 0, 0.45)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            pointerEvents: 'none',
+            transition: 'opacity 0.2s ease',
+          }}>
+            <Play size={16} fill="#fff" style={{ marginLeft: '2px' }} />
+          </div>
+        )}
 
         {/* 카테고리 태그 */}
         <span className="reel-badge-tag">

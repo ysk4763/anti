@@ -2,25 +2,24 @@
 
 /**
  * AI INNO LAB - 저장소 / 라이브러리 화면 (app/library/page.tsx)
- * 즐겨찾기한 릴스 및 AI 생성 기획안 프로젝트를 통합 관리합니다.
+ * 즐겨찾기한 릴스 및 AI 생성 기획안 프로젝트를 통합 관리하며, 릴스 클릭 시 실제 비디오 재생을 지원합니다.
  */
 
 import React, { useState, useEffect } from 'react';
 import { getBookmarkedReels, getSavedPlans, deletePlan, toggleBookmarkReel, setCurrentPlan } from '@/lib/storage';
 import { ReelBenchmark, ReelPlan } from '@/lib/types';
+import ReelPlayerModal from '@/components/ReelPlayerModal';
 import { 
   FolderArchive, 
   Bookmark, 
   FileText, 
   Trash2, 
-  ExternalLink, 
   Zap, 
   Sparkles, 
   Video, 
   Clapperboard, 
-  Play,
+  Play, 
   Heart,
-  MessageCircle,
   ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
@@ -31,6 +30,7 @@ export default function LibraryPage() {
   const [activeTab, setActiveTab] = useState<'bookmarks' | 'projects'>('bookmarks');
   const [bookmarks, setBookmarks] = useState<ReelBenchmark[]>([]);
   const [savedPlans, setSavedPlans] = useState<ReelPlan[]>([]);
+  const [activePlayReel, setActivePlayReel] = useState<ReelBenchmark | null>(null);
 
   const loadData = () => {
     setBookmarks(getBookmarkedReels());
@@ -70,7 +70,7 @@ export default function LibraryPage() {
         </p>
       </div>
 
-      {/* 2. 탭 전환 버튼 (즐겨찾기 릴스 / 내 프로젝트) */}
+      {/* 2. 탭 전환 버튼 */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '28px' }}>
         <button
           onClick={() => setActiveTab('bookmarks')}
@@ -129,20 +129,41 @@ export default function LibraryPage() {
         </button>
       </div>
 
-      {/* 3. [탭 1] 즐겨찾기 릴스 목록 렌더링 */}
+      {/* 3. [탭 1] 즐겨찾기 릴스 목록 렌더링 (클릭 시 비디오 플레이어 모달 실행) */}
       {activeTab === 'bookmarks' && (
         <>
           {bookmarks.length > 0 ? (
             <div className="reels-grid">
               {bookmarks.map((reel) => (
                 <div key={reel.id} className="reel-card">
-                  <div className="reel-thumbnail-box">
+                  <div
+                    className="reel-thumbnail-box"
+                    onClick={() => setActivePlayReel(reel)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={reel.thumbnailUrl}
                       alt={reel.title}
                       className="reel-thumbnail-img"
                     />
+                    <div style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '50%',
+                      background: 'rgba(0, 0, 0, 0.5)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff'
+                    }}>
+                      <Play size={16} fill="#fff" style={{ marginLeft: '2px' }} />
+                    </div>
+
                     <span className="reel-badge-tag">{reel.category.toUpperCase()}</span>
                     <span className="reel-date-badge">{reel.date}</span>
 
@@ -310,6 +331,13 @@ export default function LibraryPage() {
           )}
         </>
       )}
+
+      {/* 비디오 플레이어 모달 */}
+      <ReelPlayerModal
+        reel={activePlayReel}
+        onClose={() => setActivePlayReel(null)}
+        onBookmarkChange={loadData}
+      />
     </div>
   );
 }
