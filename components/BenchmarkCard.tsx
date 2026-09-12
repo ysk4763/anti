@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AI INNO LAB - 릴스 벤치마킹 카드 컴포넌트
+ * AI INNO LAB - 릴스 벤치마킹 카드 컴포넌트 (components/BenchmarkCard.tsx)
  * 마우스 호버 시 인라인 고속 프리뷰 비디오 재생 & 클릭 시 풀스크린 비디오 플레이어 모달 즉시 실행
  */
 
@@ -75,26 +75,35 @@ export default function BenchmarkCard({ reel, onBookmarkChange, onPlayReel }: Be
         style={{ cursor: 'pointer', position: 'relative' }}
       >
         {/* 마우스 호버 시 비디오 자동 프리뷰 재생 */}
-        {reel.videoUrl && isHovered ? (
+        {reel.videoUrl ? (
           <video
             ref={videoRef}
             src={reel.videoUrl}
-            autoPlay
+            autoPlay={isHovered}
             loop
             muted
             playsInline
+            preload="metadata"
             className="reel-thumbnail-img"
-            style={{ objectFit: 'cover' }}
+            style={{ 
+              objectFit: 'cover',
+              display: isHovered ? 'block' : 'none'
+            }}
           />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={reel.thumbnailUrl}
-            alt={reel.title}
-            className="reel-thumbnail-img"
-            loading="lazy"
-          />
-        )}
+        ) : null}
+
+        {/* 정적 썸네일 이미지 (호버 안 됐을 때 표시) */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={reel.thumbnailUrl}
+          alt={reel.title}
+          className="reel-thumbnail-img"
+          loading="lazy"
+          style={{ 
+            display: isHovered ? 'none' : 'block',
+            objectFit: 'cover'
+          }}
+        />
 
         {/* 재생 아이콘 오버레이 (클릭 유도) */}
         {!isHovered && (

@@ -2,17 +2,19 @@
 
 /**
  * AI INNO LAB - 나만의 릴스 AI 기획 화면 (app/planning/page.tsx)
- * 레퍼런스 분석, 맞춤형 수정 옵션 입력, 스토리보드/대본/촬영가이드/캡션 실시간 생성 및
- * 고화질 PDF 다운로드, 시덴스 2.5 및 구글 FLOW 프롬프트로의 원클릭 연계 제작을 완벽 지원합니다.
+ * 레퍼런스 원본 비디오 실시간 재생 및 풀스크린 모달 연동, 맞춤형 수정 옵션 입력, 
+ * 스토리보드/대본/촬영가이드/캡션 실시간 생성 및 고화질 PDF 다운로드, 
+ * 시덴스 2.5 및 구글 FLOW 프롬프트로의 원클릭 연계 제작을 완벽 지원합니다.
  */
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { getAllBenchmarkReels } from '@/lib/benchmarkData';
 import { ReelBenchmark, ReelPlan } from '@/lib/types';
 import { generateReelPlan } from '@/lib/promptTemplates';
 import { saveReelPlan, getCurrentPlan, setCurrentPlan } from '@/lib/storage';
 import { exportPlanToPdf } from '@/lib/pdfExport';
+import ReelPlayerModal from '@/components/ReelPlayerModal';
 import { 
   Sparkles, 
   Layers, 
@@ -27,7 +29,12 @@ import {
   Film,
   Camera,
   FileText,
-  FileType
+  FileType,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Maximize2
 } from 'lucide-react';
 
 function PlanningContent() {
@@ -40,6 +47,12 @@ function PlanningContent() {
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // 비디오 플레이어 및 모달 상태
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [isMuted, setIsMuted] = useState<boolean>(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // 수정 옵션 상태들
   const [selectedFixTags, setSelectedFixTags] = useState<string[]>(['타깃 고객', '말투/톤', '썸네일 제목']);
@@ -69,6 +82,26 @@ function PlanningContent() {
       }
     }
   }, [refId]);
+
+  // 비디오 재생 제어
+  const togglePlay = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const toggleMute = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!videoRef.current) return;
+    const nextMuted = !videoRef.current.muted;
+    videoRef.current.muted = nextMuted;
+    setIsMuted(nextMuted);
+  };
 
   // 수정 가능 태그 목록
   const FIX_TAG_OPTIONS = [
@@ -149,23 +182,23 @@ function PlanningContent() {
           나만의 릴스로 생성
         </h1>
         <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-          레퍼런스를 바탕으로 내 기획에 맞게 수정하고 릴스를 완성하세요.
+          레퍼런스 영상을 직접 재생하여 확인하고, 내 기획에 맞게 수정하여 최적화된 릴스를 완성하세요.
         </p>
       </div>
 
-      {/* 2. 상단 2열 그리드 (좌: 원본 레퍼런스 분석 / 우: 기획 수정 폼) */}
+      {/* 2. 상단 2열 그리드 (좌: 원본 레퍼런스 분석 및 실시간 비디오 재생 / 우: 기획 수정 폼) */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 1.2fr',
+        gridTemplateColumns: '1.1fr 1.2fr',
         gap: '24px',
         marginBottom: '32px'
       }}>
-        {/* [좌측 카드] 원본 레퍼런스 분석 정보 */}
+        {/* [좌측 카드] 원본 레퍼런스 분석 & 실시간 비디오 플레이어 */}
         <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Film size={18} color="var(--accent-orange)" />
-              원본 레퍼런스
+              원본 레퍼런스 비디오
             </h3>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
               {selectedReel.authorHandle}
@@ -173,46 +206,159 @@ function PlanningContent() {
           </div>
 
           <div style={{ display: 'flex', gap: '16px' }}>
-            {/* 레퍼런스 썸네일 */}
-            <div style={{ width: '130px', minWidth: '130px', aspectRatio: '9/14', borderRadius: '8px', overflow: 'hidden', background: '#000' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={selectedReel.thumbnailUrl}
-                alt="레퍼런스 썸네일"
+            {/* 레퍼런스 실시간 비디오 플레이어 박스 */}
+            <div 
+              style={{ 
+                width: '150px', 
+                minWidth: '150px', 
+                aspectRatio: '9/16', 
+                borderRadius: '10px', 
+                overflow: 'hidden', 
+                background: '#000',
+                position: 'relative',
+                cursor: 'pointer',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                boxShadow: '0 8px 20px rgba(0,0,0,0.5)'
+              }}
+              onClick={() => setIsModalOpen(true)}
+              title="클릭하여 풀스크린으로 크게 보기"
+            >
+              {/* 비디오 태그 */}
+              <video
+                ref={videoRef}
+                src={selectedReel.videoUrl}
+                autoPlay
+                loop
+                muted={isMuted}
+                playsInline
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
               />
+
+              {/* 재생/정지 오버레이 버튼 */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePlay();
+                }}
+                style={{
+                  position: 'absolute',
+                  bottom: '10px',
+                  left: '10px',
+                  background: 'rgba(0, 0, 0, 0.7)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  zIndex: 10
+                }}
+                title={isPlaying ? '일시정지' : '재생'}
+              >
+                {isPlaying ? <Pause size={14} /> : <Play size={14} fill="#fff" />}
+              </button>
+
+              {/* 음소거 토글 버튼 */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleMute();
+                }}
+                style={{
+                  position: 'absolute',
+                  bottom: '10px',
+                  right: '10px',
+                  background: 'rgba(0, 0, 0, 0.7)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: isMuted ? '#f59e0b' : '#10b981',
+                  cursor: 'pointer',
+                  zIndex: 10
+                }}
+                title={isMuted ? '소리 켜기' : '음소거'}
+              >
+                {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+              </button>
+
+              {/* 크게 보기 뱃지 */}
+              <div style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                background: 'rgba(0, 0, 0, 0.65)',
+                backdropFilter: 'blur(4px)',
+                borderRadius: '6px',
+                padding: '3px 6px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                color: '#fff',
+                fontSize: '10px',
+                fontWeight: 600
+              }}>
+                <Maximize2 size={10} />
+                <span>확대</span>
+              </div>
             </div>
 
             {/* 원본 캡션 및 핵심 정보 */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent-orange)' }}>
+                  {selectedReel.title}
+                </span>
+              </div>
+
+              <div style={{
+                fontSize: '12px',
+                color: '#38bdf8',
+                background: 'rgba(56, 189, 248, 0.08)',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+                borderRadius: '6px',
+                padding: '6px 10px',
+                lineHeight: 1.4
+              }}>
+                <strong>🎯 후킹:</strong> "{selectedReel.hook}"
+              </div>
+
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginTop: '2px' }}>
                 원본 캡션 (Caption)
               </div>
               <p style={{
-                fontSize: '13px',
+                fontSize: '12px',
                 color: '#e2e8f0',
                 lineHeight: 1.5,
                 background: 'rgba(0,0,0,0.25)',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                maxHeight: '110px',
+                padding: '8px 10px',
+                borderRadius: '6px',
+                maxHeight: '75px',
                 overflowY: 'auto'
               }}>
                 {selectedReel.caption}
               </p>
 
-              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginTop: '4px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
                 추출된 주요 장면
               </div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {selectedReel.keyScenes.map((scene, sIdx) => (
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                {selectedReel.keyScenes.slice(0, 3).map((scene, sIdx) => (
                   <span
                     key={sIdx}
                     style={{
-                      fontSize: '11px',
+                      fontSize: '10px',
                       background: 'rgba(255, 255, 255, 0.05)',
                       border: '1px solid var(--border-subtle)',
-                      padding: '4px 8px',
+                      padding: '3px 6px',
                       borderRadius: '4px',
                       color: 'var(--text-secondary)'
                     }}
@@ -773,6 +919,14 @@ function PlanningContent() {
             레퍼런스를 자동으로 분석하여 맞춤형 스토리보드, 대본, 촬영 가이드 및 비디오 생성 프롬프트를 원스톱으로 제작해 드립니다.
           </p>
         </div>
+      )}
+
+      {/* 레퍼런스 비디오 풀스크린 플레이어 모달 */}
+      {isModalOpen && (
+        <ReelPlayerModal
+          reel={selectedReel}
+          onClose={() => setIsModalOpen(false)}
+        />
       )}
     </div>
   );

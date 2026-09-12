@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toggleBookmarkReel } from '@/lib/storage';
+import { VERIFIED_VIDEO_STREAMS } from '@/lib/benchmarkData';
 
 interface ReelPlayerModalProps {
   reel: ReelBenchmark | null;
@@ -37,7 +38,8 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
   const [likesCount, setLikesCount] = useState<number>(0);
   const [hasLiked, setHasLiked] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
-  const [hasError, setHasError] = useState<boolean>(false);
+  const [currentVideoSrc, setCurrentVideoSrc] = useState<string>('');
+  const [fallbackIndex, setFallbackIndex] = useState<number>(0);
 
   useEffect(() => {
     if (reel) {
@@ -46,18 +48,28 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
       setHasLiked(false);
       setIsPlaying(true);
       setIsMuted(true);
-      setHasError(false);
+      setCurrentVideoSrc(reel.videoUrl || VERIFIED_VIDEO_STREAMS[0]);
+      setFallbackIndex(0);
 
-      // 모달이 열리면 비디오를 즉시 재생
-      setTimeout(() => {
+      // 모달이 열리면 비디오를 즉시 재생 시도
+      const playTimer = setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.currentTime = 0;
-          videoRef.current.play().catch((err) => {
-            console.warn('비디오 자동 재생 대기:', err);
-            setIsPlaying(false);
+          videoRef.current.muted = true;
+          videoRef.current.play().then(() => {
+            setIsPlaying(true);
+          }).catch((err) => {
+            console.warn('비디오 자동 재생 재시도 중:', err);
+            // 사용자 상호작용 전일 경우 음소거 재보장 후 재생
+            if (videoRef.current) {
+              videoRef.current.muted = true;
+              videoRef.current.play().catch(() => setIsPlaying(false));
+            }
           });
         }
-      }, 100);
+      }, 50);
+
+      return () => clearTimeout(playTimer);
     }
   }, [reel]);
 
@@ -96,6 +108,13 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
     const current = videoRef.current.currentTime;
     const duration = videoRef.current.duration || 1;
     setProgress((current / duration) * 100);
+  };
+
+  const handleVideoError = () => {
+    console.warn('비디오 스트림 로드 오류 발생, 다음 대체 고속 CDN으로 전환합니다.');
+    const nextIdx = (fallbackIndex + 1) % VERIFIED_VIDEO_STREAMS.length;
+    setFallbackIndex(nextIdx);
+    setCurrentVideoSrc(VERIFIED_VIDEO_STREAMS[nextIdx]);
   };
 
   const handleLike = (e: React.MouseEvent) => {
@@ -192,36 +211,24 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
         }}
         onClick={togglePlay}
         >
-          {reel.videoUrl && !hasError ? (
-            <video
-              ref={videoRef}
-              src={reel.videoUrl}
-              autoPlay
-              loop
-              muted={isMuted}
-              playsInline
-              onTimeUpdate={handleTimeUpdate}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-              onError={() => {
-                console.warn('비디오 로드 오류, 썸네일로 대체');
-                setHasError(true);
-              }}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-            />
-          ) : (
-            // 비디오 폴백 이미지
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={reel.thumbnailUrl}
-              alt={reel.title}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          )}
+          <video
+            ref={videoRef}
+            src={currentVideoSrc}
+            autoPlay
+            loop
+            muted={isMuted}
+            playsInline
+            preload="auto"
+            onTimeUpdate={handleTimeUpdate}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onError={handleVideoError}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            }}
+          />
 
           {/* 비디오 하단 진행 바 */}
           <div style={{
