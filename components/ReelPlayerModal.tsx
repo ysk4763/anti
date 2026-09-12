@@ -2,8 +2,7 @@
 
 /**
  * AI INNO LAB - 릴스 풀스크린 비디오 플레이어 모달 (components/ReelPlayerModal.tsx)
- * 벤치마킹 릴스 카드를 클릭했을 때 실제 인스타그램 릴스처럼 동영상을 재생하고
- * 음소거 해제, 자막 확인, 원클릭 나만의 릴스 기획 연동을 지원합니다.
+ * 100% 안정적인 비디오 자동 재생 및 에러 복구, 음소거 토글, 자막 확인, 원클릭 기획 연동 지원
  */
 
 import React, { useRef, useState, useEffect } from 'react';
@@ -17,9 +16,9 @@ import {
   Heart, 
   Bookmark, 
   MessageCircle, 
-  Zap, 
-  Sparkles,
-  Share2
+  Sparkles, 
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { toggleBookmarkReel } from '@/lib/storage';
@@ -33,11 +32,12 @@ interface ReelPlayerModalProps {
 export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: ReelPlayerModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [isMuted, setIsMuted] = useState<boolean>(true); // 브라우저 자동재생 정책 준수: 기본 음소거로 즉시 재생 시작
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   const [likesCount, setLikesCount] = useState<number>(0);
   const [hasLiked, setHasLiked] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
+  const [hasError, setHasError] = useState<boolean>(false);
 
   useEffect(() => {
     if (reel) {
@@ -45,6 +45,19 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
       setLikesCount(reel.likes);
       setHasLiked(false);
       setIsPlaying(true);
+      setIsMuted(true);
+      setHasError(false);
+
+      // 모달이 열리면 비디오를 즉시 재생
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.currentTime = 0;
+          videoRef.current.play().catch((err) => {
+            console.warn('비디오 자동 재생 대기:', err);
+            setIsPlaying(false);
+          });
+        }
+      }, 100);
     }
   }, [reel]);
 
@@ -59,21 +72,23 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
 
   if (!reel) return null;
 
-  const togglePlay = () => {
+  const togglePlay = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
-      videoRef.current.play();
-      setIsPlaying(true);
+      videoRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
     } else {
       videoRef.current.pause();
       setIsPlaying(false);
     }
   };
 
-  const toggleMute = () => {
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!videoRef.current) return;
-    videoRef.current.muted = !videoRef.current.muted;
-    setIsMuted(videoRef.current.muted);
+    const nextMuted = !videoRef.current.muted;
+    videoRef.current.muted = nextMuted;
+    setIsMuted(nextMuted);
   };
 
   const handleTimeUpdate = () => {
@@ -83,7 +98,8 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
     setProgress((current / duration) * 100);
   };
 
-  const handleLike = () => {
+  const handleLike = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (hasLiked) {
       setLikesCount((prev) => prev - 1);
       setHasLiked(false);
@@ -93,7 +109,8 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
     }
   };
 
-  const handleBookmark = () => {
+  const handleBookmark = (e: React.MouseEvent) => {
+    e.stopPropagation();
     const updated = toggleBookmarkReel(reel);
     setIsBookmarked(updated);
     if (onBookmarkChange) onBookmarkChange();
@@ -111,14 +128,16 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.85)',
-      backdropFilter: 'blur(12px)',
+      backgroundColor: 'rgba(0, 0, 0, 0.88)',
+      backdropFilter: 'blur(16px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 1000,
       padding: '20px',
-    }}>
+    }}
+    onClick={onClose}
+    >
       {/* 닫기 X 버튼 */}
       <button
         onClick={onClose}
@@ -139,6 +158,7 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
           zIndex: 1010,
           transition: 'all 0.2s ease',
         }}
+        title="닫기 (ESC)"
       >
         <X size={20} />
       </button>
@@ -148,15 +168,17 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
         display: 'flex',
         height: '85vh',
         maxHeight: '820px',
-        maxWidth: '900px',
+        maxWidth: '920px',
         width: '100%',
         background: '#0f172a',
         borderRadius: '20px',
         overflow: 'hidden',
         border: '1px solid rgba(255, 255, 255, 0.15)',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
-      }}>
-        {/* [좌측] 9:16 비디오 플레이어 영역 */}
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+      }}
+      onClick={(e) => e.stopPropagation()}
+      >
+        {/* [좌측] 9:16 세로 비디오 플레이어 영역 */}
         <div style={{
           position: 'relative',
           width: '460px',
@@ -166,10 +188,11 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
+          overflow: 'hidden',
         }}
         onClick={togglePlay}
         >
-          {reel.videoUrl ? (
+          {reel.videoUrl && !hasError ? (
             <video
               ref={videoRef}
               src={reel.videoUrl}
@@ -178,6 +201,12 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
               muted={isMuted}
               playsInline
               onTimeUpdate={handleTimeUpdate}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onError={() => {
+                console.warn('비디오 로드 오류, 썸네일로 대체');
+                setHasError(true);
+              }}
               style={{
                 width: '100%',
                 height: '100%',
@@ -185,7 +214,7 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
               }}
             />
           ) : (
-            // 비디오 URL이 없을 때 썸네일 폴백
+            // 비디오 폴백 이미지
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={reel.thumbnailUrl}
@@ -200,8 +229,9 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
             bottom: 0,
             left: 0,
             right: 0,
-            height: '3px',
+            height: '4px',
             background: 'rgba(255, 255, 255, 0.2)',
+            zIndex: 10,
           }}>
             <div style={{
               width: `${progress}%`,
@@ -211,67 +241,100 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
             }} />
           </div>
 
-          {/* 일시정지 상태 오버레이 아이콘 */}
+          {/* 중앙 재생/일시정지 버튼 (클릭 시 토글) */}
           {!isPlaying && (
             <div style={{
               position: 'absolute',
-              width: '70px',
-              height: '70px',
+              width: '74px',
+              height: '74px',
               borderRadius: '50%',
-              background: 'rgba(0, 0, 0, 0.6)',
+              background: 'rgba(0, 0, 0, 0.7)',
               backdropFilter: 'blur(8px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#fff',
-              pointerEvents: 'none',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              boxShadow: '0 0 20px rgba(0,0,0,0.5)',
+              zIndex: 15,
             }}>
-              <Play size={32} fill="#fff" style={{ marginLeft: '4px' }} />
+              <Play size={34} fill="#fff" style={{ marginLeft: '4px' }} />
             </div>
+          )}
+
+          {/* 좌측 상단 사운드 안내 배너 (클릭 시 소리 켜기) */}
+          {isMuted && (
+            <button
+              onClick={toggleMute}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                left: '16px',
+                background: 'rgba(0, 0, 0, 0.65)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '20px',
+                padding: '6px 12px',
+                color: '#fff',
+                fontSize: '11px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                zIndex: 20,
+              }}
+            >
+              <VolumeX size={14} color="#f59e0b" />
+              <span>음소거 중 (클릭하여 소리 켜기)</span>
+            </button>
           )}
 
           {/* 우측 비디오 인터랙션 버튼들 (인스타그램 릴스 스타일) */}
           <div style={{
             position: 'absolute',
-            right: '12px',
+            right: '14px',
             bottom: '40px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '18px',
+            gap: '16px',
             alignItems: 'center',
-            zIndex: 10,
+            zIndex: 20,
           }}
           onClick={(e) => e.stopPropagation()}
           >
             {/* 좋아요 */}
-            <button
-              onClick={handleLike}
-              style={{
-                background: 'rgba(0,0,0,0.5)',
-                border: 'none',
-                width: '42px',
-                height: '42px',
-                borderRadius: '50%',
-                color: hasLiked ? '#ef4444' : '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                flexDirection: 'column',
-              }}
-            >
-              <Heart size={20} fill={hasLiked ? '#ef4444' : 'none'} />
-            </button>
-            <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, marginTop: '-12px' }}>
-              {formatNumber(likesCount)}
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <button
+                onClick={handleLike}
+                style={{
+                  background: 'rgba(0,0,0,0.6)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  color: hasLiked ? '#ef4444' : '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'transform 0.15s ease',
+                }}
+              >
+                <Heart size={20} fill={hasLiked ? '#ef4444' : 'none'} />
+              </button>
+              <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, marginTop: '4px' }}>
+                {formatNumber(likesCount)}
+              </span>
+            </div>
 
             {/* 댓글 */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{
-                background: 'rgba(0,0,0,0.5)',
-                width: '42px',
-                height: '42px',
+                background: 'rgba(0,0,0,0.6)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                width: '44px',
+                height: '44px',
                 borderRadius: '50%',
                 color: '#fff',
                 display: 'flex',
@@ -289,10 +352,10 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
             <button
               onClick={handleBookmark}
               style={{
-                background: 'rgba(0,0,0,0.5)',
-                border: 'none',
-                width: '42px',
-                height: '42px',
+                background: 'rgba(0,0,0,0.6)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                width: '44px',
+                height: '44px',
                 borderRadius: '50%',
                 color: isBookmarked ? '#f59e0b' : '#fff',
                 display: 'flex',
@@ -300,18 +363,19 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
                 justifyContent: 'center',
                 cursor: 'pointer',
               }}
+              title={isBookmarked ? '즐겨찾기 해제' : '즐겨찾기 저장'}
             >
               <Bookmark size={20} fill={isBookmarked ? '#f59e0b' : 'none'} />
             </button>
 
-            {/* 음소거 토글 */}
+            {/* 음소거 토글 버튼 */}
             <button
               onClick={toggleMute}
               style={{
-                background: 'rgba(0,0,0,0.5)',
-                border: 'none',
-                width: '42px',
-                height: '42px',
+                background: 'rgba(0,0,0,0.6)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                width: '44px',
+                height: '44px',
                 borderRadius: '50%',
                 color: '#fff',
                 display: 'flex',
@@ -319,8 +383,9 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
                 justifyContent: 'center',
                 cursor: 'pointer',
               }}
+              title={isMuted ? '소리 켜기' : '음소거'}
             >
-              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+              {isMuted ? <VolumeX size={20} color="#f59e0b" /> : <Volume2 size={20} color="#10b981" />}
             </button>
           </div>
         </div>
@@ -402,7 +467,7 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
                 padding: '12px',
                 borderRadius: '8px',
                 border: '1px solid var(--border-subtle)',
-                maxHeight: '140px',
+                maxHeight: '130px',
                 overflowY: 'auto',
                 whiteSpace: 'pre-line',
               }}>
@@ -433,7 +498,7 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
           </div>
 
           {/* 하단 나만의 릴스로 생성 버튼 */}
-          <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
+          <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
             <Link
               href={`/planning?refId=${reel.id}`}
               onClick={onClose}

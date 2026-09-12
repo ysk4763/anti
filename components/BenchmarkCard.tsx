@@ -2,12 +2,12 @@
 
 /**
  * AI INNO LAB - 릴스 벤치마킹 카드 컴포넌트
- * 마우스 호버 시 인라인 비디오 프리뷰 자동 재생 & 클릭 시 풀스크린 비디오 플레이어 모달 연동
+ * 마우스 호버 시 인라인 고속 프리뷰 비디오 재생 & 클릭 시 풀스크린 비디오 플레이어 모달 즉시 실행
  */
 
 import React, { useState, useRef } from 'react';
 import { ReelBenchmark } from '@/lib/types';
-import { Bookmark, Play, Heart, MessageCircle, Zap, Film } from 'lucide-react';
+import { Bookmark, Play, Heart, MessageCircle, Zap } from 'lucide-react';
 import { toggleBookmarkReel } from '@/lib/storage';
 import Link from 'next/link';
 
@@ -44,6 +44,7 @@ export default function BenchmarkCard({ reel, onBookmarkChange, onPlayReel }: Be
   const handleMouseEnter = () => {
     setIsHovered(true);
     if (videoRef.current) {
+      videoRef.current.currentTime = 0;
       videoRef.current.play().catch(() => {});
     }
   };
@@ -52,7 +53,6 @@ export default function BenchmarkCard({ reel, onBookmarkChange, onPlayReel }: Be
     setIsHovered(false);
     if (videoRef.current) {
       videoRef.current.pause();
-      videoRef.current.currentTime = 0;
     }
   };
 
@@ -72,7 +72,7 @@ export default function BenchmarkCard({ reel, onBookmarkChange, onPlayReel }: Be
       <div
         className="reel-thumbnail-box"
         onClick={handleCardClick}
-        style={{ cursor: 'pointer' }}
+        style={{ cursor: 'pointer', position: 'relative' }}
       >
         {/* 마우스 호버 시 비디오 자동 프리뷰 재생 */}
         {reel.videoUrl && isHovered ? (
@@ -96,26 +96,27 @@ export default function BenchmarkCard({ reel, onBookmarkChange, onPlayReel }: Be
           />
         )}
 
-        {/* 재생 가능 인디케이터 아이콘 (호버 전 표시) */}
+        {/* 재생 아이콘 오버레이 (클릭 유도) */}
         {!isHovered && (
           <div style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: '38px',
-            height: '38px',
+            width: '42px',
+            height: '42px',
             borderRadius: '50%',
-            background: 'rgba(0, 0, 0, 0.45)',
-            backdropFilter: 'blur(4px)',
+            background: 'rgba(0, 0, 0, 0.55)',
+            backdropFilter: 'blur(6px)',
+            border: '1px solid rgba(255, 255, 255, 0.25)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#fff',
             pointerEvents: 'none',
-            transition: 'opacity 0.2s ease',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
           }}>
-            <Play size={16} fill="#fff" style={{ marginLeft: '2px' }} />
+            <Play size={18} fill="#fff" style={{ marginLeft: '2px' }} />
           </div>
         )}
 
