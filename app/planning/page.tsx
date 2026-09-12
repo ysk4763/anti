@@ -83,6 +83,19 @@ function PlanningContent() {
     }
   }, [refId]);
 
+  // selectedReel 변경 시 비디오 자동 재생 및 로드
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.load();
+      videoRef.current.muted = true;
+      videoRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch(() => {
+        setIsPlaying(false);
+      });
+    }
+  }, [selectedReel]);
+
   // 비디오 재생 제어
   const togglePlay = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -225,12 +238,14 @@ function PlanningContent() {
             >
               {/* 비디오 태그 */}
               <video
+                key={selectedReel.videoUrl || selectedReel.id}
                 ref={videoRef}
                 src={selectedReel.videoUrl}
                 autoPlay
                 loop
                 muted={isMuted}
                 playsInline
+                preload="auto"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}

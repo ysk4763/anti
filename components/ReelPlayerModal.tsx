@@ -212,6 +212,7 @@ export default function ReelPlayerModal({ reel, onClose, onBookmarkChange }: Ree
         onClick={togglePlay}
         >
           <video
+            key={currentVideoSrc}
             ref={videoRef}
             src={currentVideoSrc}
             autoPlay

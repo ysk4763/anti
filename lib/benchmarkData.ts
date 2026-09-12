@@ -5,18 +5,13 @@
 
 import { ReelBenchmark } from './types';
 
-// 브라우저 차단 없이 100% 고속 재생되는 검증된 HTTPS CDN 비디오 목록
+// 브라우저 차단 및 CORS 없이 100% 즉시 초고속 재생되는 자체 호스팅 로컬 비디오 목록
 export const VERIFIED_VIDEO_STREAMS = [
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WhatCarCanYouGetForAGrand.mp4',
+  '/videos/sample1.mp4',
+  '/videos/sample2.mp4',
+  '/videos/sample3.mp4',
+  '/videos/sample4.mp4',
+  '/videos/sample5.mp4',
 ];
 
 // 고화질 테마별 썸네일 이미지 컬렉션
