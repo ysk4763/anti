@@ -1,17 +1,21 @@
 /**
  * AI INNO LAB - 기획안 PDF 내보내기 유틸리티 (lib/pdfExport.ts)
- * 한글 폰트가 깨지지 않도록 고해상도 DOM 캔버스 렌더링 기법을 적용하여
- * A4 규격의 전문가용 기획안 PDF 문서를 생성하고 자동 다운로드합니다.
+ * Node.js SSR 환경에서 서버 크래시를 방지하기 위해 dynamic import 기법을 적용하여
+ * 브라우저 클라이언트에서만 jspdf와 html2canvas를 안전하게 로드합니다.
  */
 
 import { ReelPlan } from './types';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 export async function exportPlanToPdf(plan: ReelPlan): Promise<void> {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
-  // 1. PDF 렌더링용 임시 컨테이너 생성 (A4 규격 800px 너비의 모던한 문서 디자인)
+  // 1. 브라우저 전용 라이브러리 동적 로드 (SSR 오류 100% 방지)
+  const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+    import('jspdf'),
+    import('html2canvas'),
+  ]);
+
+  // 2. PDF 렌더링용 임시 컨테이너 생성 (A4 규격 800px 너비의 모던한 문서 디자인)
   const container = document.createElement('div');
   container.id = 'pdf-export-container';
   container.style.position = 'fixed';
@@ -24,7 +28,7 @@ export async function exportPlanToPdf(plan: ReelPlan): Promise<void> {
   container.style.fontFamily = "'Pretendard', sans-serif";
   container.style.boxSizing = 'border-box';
 
-  // 2. 기획안 HTML 내용 구조화
+  // 3. 기획안 HTML 내용 구조화
   container.innerHTML = `
     <div style="border-bottom: 2px solid #6366f1; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-end;">
       <div>
@@ -95,7 +99,7 @@ export async function exportPlanToPdf(plan: ReelPlan): Promise<void> {
   document.body.appendChild(container);
 
   try {
-    // 3. HTML 캔버스화 (고해상도 배율 2배 적용)
+    // 4. HTML 캔버스화 (고해상도 배율 2배 적용)
     const canvas = await html2canvas(container, {
       scale: 2,
       useCORS: true,

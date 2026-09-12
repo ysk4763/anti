@@ -5,13 +5,18 @@
  * 현재 라우트 경로 표시(Breadcrumb) 및 톤앤매너 상태 표시를 제공합니다.
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { ChevronRight, Sparkles, Database } from 'lucide-react';
 import { isSupabaseConfigured } from '@/lib/storage';
 
 export default function Header() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 현재 경로명 한글 라벨 맵핑
   const getPageTitle = () => {
@@ -56,7 +61,7 @@ export default function Header() {
           color: 'var(--text-secondary)'
         }}>
           <Database size={14} color="#38bdf8" />
-          <span>스토리지: {isSupabaseConfigured ? 'Supabase 클라우드' : '로컬 스마트 캐시'}</span>
+          <span>스토리지: {mounted && isSupabaseConfigured ? 'Supabase 클라우드' : '로컬 스마트 캐시'}</span>
         </div>
 
         <div style={{
