@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { generateSeedance25Prompt, generateGoogleFlowPrompt } from '@/lib/promptTemplates';
 import { ReelPlan } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/generate-video-prompt
  * 릴스 기획안을 바탕으로 시덴스 2.5 또는 구글 FLOW 비디오 프롬프트를 생성하는 API

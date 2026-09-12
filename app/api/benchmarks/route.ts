@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAllBenchmarkReels } from '@/lib/benchmarkData';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/benchmarks
  * 카테고리, 정렬, 검색 쿼리를 바탕으로 릴스 벤치마킹 데이터를 반환하는 API

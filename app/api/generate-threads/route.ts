@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { generateThreadsFromPlan } from '@/lib/promptTemplates';
 import { ReelPlan } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/generate-threads
  * 릴스 기획안을 바탕으로 SNS 쓰레드 콘텐츠를 생성하는 API

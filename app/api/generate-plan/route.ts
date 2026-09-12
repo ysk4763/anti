@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { generateReelPlan, PlanGenerationRequest } from '@/lib/promptTemplates';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/generate-plan
  * 레퍼런스 및 사용자 요구사항을 기반으로 맞춤형 릴스 기획안을 생성하는 API
